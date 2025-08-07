@@ -83,8 +83,10 @@ log_step "2/8 Criando estrutura de diretórios..."
 mkdir -p uploads results data logs
 chmod 777 uploads results data logs
 
-# Garante que o usuário atual tem acesso aos diretórios
-chown -R $USER:$USER uploads results data logs 2>/dev/null || true
+# Tenta configurar ownership, mas não falha se não conseguir
+if command -v chown >/dev/null 2>&1; then
+    chown -R $USER:$USER uploads results data logs 2>/dev/null || log_warning "Não foi possível definir ownership dos diretórios (normal em alguns ambientes)"
+fi
 
 log_success "Diretórios criados!"
 

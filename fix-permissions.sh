@@ -44,11 +44,17 @@ mkdir -p uploads results data logs
 
 log_info "Configurando permissões dos diretórios..."
 chmod 777 uploads results data logs
-sudo chown -R $USER:$USER uploads results data logs 2>/dev/null || true
+
+# Tenta configurar ownership se possível
+if command -v chown >/dev/null 2>&1 && [ "$EUID" -eq 0 ]; then
+    chown -R $USER:$USER uploads results data logs 2>/dev/null || log_warning "Ownership não pôde ser definido"
+else
+    log_info "Pulando configuração de ownership (requer privilégios de administrador)"
+fi
 
 log_info "Configurando permissões recursivas..."
-find uploads results data logs -type d -exec chmod 755 {} \; 2>/dev/null || true
-find uploads results data logs -type f -exec chmod 644 {} \; 2>/dev/null || true
+find uploads results data logs -type d -exec chmod 755 {} \; 2>/dev/null || log_warning "Alguns diretórios podem não ter sido alterados"
+find uploads results data logs -type f -exec chmod 644 {} \; 2>/dev/null || log_warning "Alguns arquivos podem não ter sido alterados"
 
 log_info "Rebuilding container com permissões corrigidas..."
 docker-compose build --no-cache

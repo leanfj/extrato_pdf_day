@@ -251,17 +251,14 @@ def upload_file():
             'id': job_id,
             'filename': filename,
             'file_path': file_path,
-            'status': 'queued',
-            'message': 'Arquivo enviado, iniciando processamento...',
+            'status': 'processing',
+            'message': 'Arquivo enviado. Aguardando início do processamento...',
             'created_at': datetime.now(),
             'data': [],
             'stats': {}
         }
         
-        # Processa o arquivo (em produção, usar Celery ou similar)
-        process_pdf_file(file_path, job_id)
-        
-        flash('Arquivo processado com sucesso!', 'success')
+        # Redireciona para página de resultados primeiro (o processamento será feito via AJAX)
         return redirect(url_for('results', job_id=job_id))
         
     except Exception as e:
@@ -276,7 +273,36 @@ def results(job_id):
         return redirect(url_for('index'))
     
     job = processing_jobs[job_id]
-    return render_template('results.html', job=job)
+    return render_template('results.html', job=job, format_currency_br=format_currency_br)
+
+@app.route('/api/process/<job_id>', methods=['POST'])
+def api_process_job(job_id):
+    """API para iniciar processamento de um job"""
+    print(f"[DEBUG] Iniciando processamento do job {job_id}")
+    
+    if job_id not in processing_jobs:
+        print(f"[ERROR] Job {job_id} não encontrado")
+        return jsonify({'error': 'Job não encontrado'}), 404
+    
+    job = processing_jobs[job_id]
+    
+    if job['status'] != 'processing':
+        print(f"[ERROR] Job {job_id} já foi processado. Status atual: {job['status']}")
+        return jsonify({'error': 'Job já foi processado'}), 400
+    
+    try:
+        print(f"[DEBUG] Processando arquivo: {job['file_path']}")
+        # Processa o arquivo
+        process_pdf_file(job['file_path'], job_id)
+        print(f"[DEBUG] Processamento do job {job_id} concluído")
+        return jsonify({'success': True, 'message': 'Processamento iniciado'})
+    except Exception as e:
+        print(f"[ERROR] Erro no processamento do job {job_id}: {str(e)}")
+        processing_jobs[job_id].update({
+            'status': 'error',
+            'message': f'Erro ao iniciar processamento: {str(e)}'
+        })
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/job/<job_id>')
 def api_job_status(job_id):

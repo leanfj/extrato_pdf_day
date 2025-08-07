@@ -45,8 +45,8 @@ class PDFExtractor:
         except Exception as e:
             print(f"Erro ao processar PDF: {e}")
         
-        # Agrega os dados por placa
-        self.data = self._aggregate_by_placa(raw_data)
+        # Mantém os dados separados por placa e data
+        self.data = self._process_by_placa_and_date(raw_data)
         return self.data
     
     def _process_tables(self, tables: List, page_num: int) -> List[Dict]:
@@ -81,7 +81,8 @@ class PDFExtractor:
     
     def _process_text(self, text: str, page_num: int) -> List[Dict]:
         """
-        Processa texto bruto da página
+        Processa texto bruto da página extraindo cada registro individualmente
+        Mantém contexto da placa atual para linhas subsequentes
         
         Args:
             text (str): Texto da página
@@ -93,7 +94,6 @@ class PDFExtractor:
         extracted_data = []
         lines = text.split('\n')
         current_placa = None
-        current_group_lines = []
         
         for line_num, line in enumerate(lines, 1):
             if not line.strip():
@@ -102,78 +102,116 @@ class PDFExtractor:
             # Verifica se é uma linha de cabeçalho (ignora)
             if 'PLACA DATA PRODUTO' in line or 'MOTORISTA FROTA' in line:
                 continue
-            
-            # Verifica se é uma linha de TOTAL
+                
+            # Verifica se é linha de total (ignora)
             if line.strip().startswith('TOTAL R$'):
-                if current_placa and current_group_lines:
-                    # Extrai o valor do total
-                    valor_total = self._extract_total_value(line)
-                    if valor_total:
-                        # Pega a primeira data do grupo
-                        primeira_data = self._get_first_date_from_group(current_group_lines)
-                        
-                        extracted_data.append({
-                            'placa': current_placa,
-                            'data': primeira_data,
-                            'total': valor_total,
-                            'texto_original': f"GRUPO: {current_placa} | LINHAS: {len(current_group_lines)} | TOTAL: {line.strip()}",
-                            'pagina': page_num,
-                            'linha_referencia': f"grupo_placa_{line_num}"
-                        })
-                        
-                        # Reset para próximo grupo
-                        current_group_lines = []
+                current_placa = None  # Reset do contexto após total
                 continue
             
-            # Tenta extrair placa da linha
-            placa_linha = self._find_pattern(line, r'\b[A-Z]{3}[-\s]?\d{4}\b|\b[A-Z]{3}[-\s]?\d[A-Z]\d{2}\b')
+            # Verifica se há uma placa na linha atual
+            placa_na_linha = self._find_pattern(line, r'\b[A-Z]{3}[-\s]?\d{4}\b|\b[A-Z]{3}[-\s]?\d[A-Z]\d{2}\b')
+            if placa_na_linha:
+                current_placa = self._clean_placa(placa_na_linha)
             
-            if placa_linha:
-                # Nova placa encontrada
-                if current_placa and current_group_lines:
-                    # Finaliza grupo anterior se não houve TOTAL explícito
-                    primeira_data = self._get_first_date_from_group(current_group_lines)
-                    valor_estimado = self._estimate_total_from_group(current_group_lines)
-                    
-                    if valor_estimado:
-                        extracted_data.append({
-                            'placa': current_placa,
-                            'data': primeira_data,
-                            'total': valor_estimado,
-                            'texto_original': f"GRUPO SEM TOTAL: {current_placa} | LINHAS: {len(current_group_lines)}",
-                            'pagina': page_num,
-                            'linha_referencia': f"grupo_estimado_{line_num}"
-                        })
-                
-                # Inicia novo grupo
-                current_placa = self._clean_placa(placa_linha)
-                current_group_lines = [line]
-                
-            else:
-                # Linha sem placa - verifica se tem data/valor (continuação)
-                tem_data = self._find_pattern(line, r'\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b')
-                tem_valor = self._find_pattern(line, r'\d+[.,]\d{2}')
-                
-                if current_placa and (tem_data or tem_valor):
-                    # Adiciona ao grupo atual
-                    current_group_lines.append(line)
-        
-        # Processa último grupo se existir
-        if current_placa and current_group_lines:
-            primeira_data = self._get_first_date_from_group(current_group_lines)
-            valor_estimado = self._estimate_total_from_group(current_group_lines)
-            
-            if valor_estimado:
-                extracted_data.append({
-                    'placa': current_placa,
-                    'data': primeira_data,
-                    'total': valor_estimado,
-                    'texto_original': f"GRUPO FINAL: {current_placa} | LINHAS: {len(current_group_lines)}",
-                    'pagina': page_num,
-                    'linha_referencia': f"grupo_final"
-                })
+            # Tenta extrair dados da linha atual (com contexto da placa)
+            line_data = self._extract_line_data_with_context(line, page_num, line_num, current_placa)
+            if line_data:
+                extracted_data.append(line_data)
         
         return extracted_data
+    
+    def _extract_line_data_with_context(self, line: str, page_num: int, line_num: int, current_placa: str) -> Dict:
+        """
+        Extrai dados de uma única linha usando o contexto da placa atual
+        
+        Args:
+            line (str): Linha de texto
+            page_num (int): Número da página
+            line_num (int): Número da linha
+            current_placa (str): Placa atual no contexto
+            
+        Returns:
+            Dict: Dados extraídos da linha ou None se não encontrar dados válidos
+        """
+        # Procura por placa na linha atual
+        placa_na_linha = self._find_pattern(line, r'\b[A-Z]{3}[-\s]?\d{4}\b|\b[A-Z]{3}[-\s]?\d[A-Z]\d{2}\b')
+        
+        # Usa a placa da linha ou a placa do contexto
+        placa = placa_na_linha if placa_na_linha else current_placa
+        
+        # Se não temos placa nem no contexto, não processa
+        if not placa:
+            return None
+        
+        # Procura por data
+        data = self._find_pattern(line, r'\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b')
+        if not data:
+            return None
+        
+        # Procura por valores monetários na linha
+        valores = re.findall(r'\d+[.,]\d{2}', line)
+        valor = None
+        
+        if valores:
+            # Pega o penúltimo valor (que geralmente é o valor principal)
+            # O último valor costuma ser a quantidade
+            if len(valores) >= 2:
+                valor = valores[-2]  # Penúltimo valor
+            else:
+                valor = valores[-1]  # Se só tem um valor, usa ele
+        
+        if valor:
+            line_ref = f"linha_{line_num}"
+            return {
+                'placa': self._clean_placa(placa),
+                'data': self._clean_data(data),
+                'total': self._clean_valor(valor),
+                'texto_original': line,
+                'pagina': page_num,
+                'linha_referencia': line_ref
+            }
+        
+        return None
+
+    def _extract_line_data(self, line: str, page_num: int, line_num: int) -> Dict:
+        """
+        Extrai dados de uma única linha
+        
+        Args:
+            line (str): Linha de texto
+            page_num (int): Número da página
+            line_num (int): Número da linha
+            
+        Returns:
+            Dict: Dados extraídos da linha ou None se não encontrar dados válidos
+        """
+        # Procura por placa
+        placa = self._find_pattern(line, r'\b[A-Z]{3}[-\s]?\d{4}\b|\b[A-Z]{3}[-\s]?\d[A-Z]\d{2}\b')
+        if not placa:
+            return None
+        
+        # Procura por data
+        data = self._find_pattern(line, r'\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b')
+        
+        # Procura por valor monetário
+        valor = self._find_pattern(line, r'R?\$?\s*\d+[.,]\d{2}|\d+[.,]\d{2}')
+        
+        # Se encontrou placa, cria o registro (mesmo que data/valor estejam vazios)
+        if placa:
+            placa_limpa = self._clean_placa(placa)
+            data_limpa = self._clean_data(data) if data else ''
+            valor_limpo = self._clean_valor(valor) if valor else '0,00'
+            
+            return {
+                'placa': placa_limpa,
+                'data': data_limpa,
+                'total': valor_limpo,
+                'texto_original': line.strip(),
+                'pagina': page_num,
+                'linha_referencia': f"linha_{line_num}"
+            }
+        
+        return None
     
     def _extract_total_value(self, total_line: str) -> str:
         """
@@ -298,6 +336,88 @@ class PDFExtractor:
         match = re.search(pattern, text, re.IGNORECASE)
         return match.group() if match else None
     
+    def _process_by_placa_and_date(self, raw_data: List[Dict]) -> List[Dict]:
+        """
+        Processa os dados mantendo registros separados por placa e data
+        Diferentes datas para a mesma placa resultam em linhas separadas
+        
+        Args:
+            raw_data (List[Dict]): Dados brutos extraídos
+            
+        Returns:
+            List[Dict]: Dados organizados por placa e data
+        """
+        if not raw_data:
+            return []
+        
+        print(f"\nProcessando {len(raw_data)} registros por placa e data...")
+        
+        # Dicionário para agrupar por placa + data
+        combined_data = {}
+        
+        for item in raw_data:
+            placa = item.get('placa', '').strip()
+            data = item.get('data', '').strip()
+            
+            if not placa:
+                continue
+            
+            # Chave única: placa + data
+            key = f"{placa}|{data}"
+            
+            # Converte valor para float para soma (se houver múltiplos registros na mesma data)
+            valor_str = item.get('total', '').strip()
+            valor_float = self._convert_valor_to_float(valor_str)
+            
+            if key not in combined_data:
+                combined_data[key] = {
+                    'placa': placa,
+                    'data': data,
+                    'total_valor': 0.0,
+                    'registros_originais': [],
+                    'paginas': set(),
+                    'total_registros': 0
+                }
+            
+            # Soma valores da mesma placa na mesma data
+            combined_data[key]['total_valor'] += valor_float
+            combined_data[key]['registros_originais'].append(item.get('texto_original', ''))
+            combined_data[key]['paginas'].add(item.get('pagina', 0))
+            combined_data[key]['total_registros'] += 1
+        
+        # Converte para lista de dicionários
+        result = []
+        for key, dados in combined_data.items():
+            placa = dados['placa']
+            data = dados['data']
+            
+            # Formata o valor total
+            valor_total_formatado = self._format_currency_br(dados['total_valor'])
+            
+            # Cria texto original
+            if dados['total_registros'] > 1:
+                texto_original = f"PLACA: {placa} | DATA: {data} | TOTAL: R$ {valor_total_formatado} | REGISTROS: {dados['total_registros']}"
+            else:
+                texto_original = f"PLACA: {placa} | DATA: {data} | TOTAL: R$ {valor_total_formatado}"
+            
+            result.append({
+                'placa': placa,
+                'data': data,
+                'total': valor_total_formatado,
+                'texto_original': texto_original,
+                'pagina': min(dados['paginas']) if dados['paginas'] else 0,
+                'linha_referencia': f"placa_{placa}_data_{data}",
+                'registros_individuais': dados['total_registros'],
+                'valor_numerico': dados['total_valor']
+            })
+        
+        print(f"Processamento concluído: {len(result)} registros únicos (placa+data)")
+        
+        # Ordena por placa e depois por data
+        result.sort(key=lambda x: (x['placa'], x['data']))
+        
+        return result
+
     def _aggregate_by_placa(self, raw_data: List[Dict]) -> List[Dict]:
         """
         Agrega os dados por placa, somando os valores totais de cada placa

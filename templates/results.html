@@ -164,16 +164,23 @@
 
         {% else %}
         <!-- Processing State -->
-        <div class="text-center py-5">
+        <div id="processing-container" class="text-center py-5">
             <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
                 <span class="visually-hidden">Processando...</span>
             </div>
-            <h4>Processando arquivo...</h4>
-            <p class="text-muted">{{ job.message }}</p>
+            <h4 id="processing-title">Processando arquivo...</h4>
+            <p id="processing-message" class="text-muted">{{ job.message }}</p>
             
             <div class="progress mt-3" style="max-width: 500px; margin: 0 auto;">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                     role="progressbar" style="width: 75%"></div>
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    Extraindo dados do PDF e organizando por placa e data...
+                </small>
             </div>
         </div>
         {% endif %}
@@ -209,13 +216,91 @@ $(document).ready(function() {
             'copy', 'csv', 'excel', 'pdf', 'print'
         ]
     });
-    {% endif %}
+    {% elif job.status == 'processing' %}
+    let pollCount = 0;
+    let progressValue = 25;
     
-    {% if job.status == 'processing' %}
-    // Auto-refresh para jobs em processamento
-    setTimeout(function() {
-        location.reload();
-    }, 3000);
+    // Atualiza a barra de progresso gradualmente
+    function updateProgress() {
+        progressValue = Math.min(progressValue + 5, 90);
+        $('#progress-bar').css('width', progressValue + '%').attr('aria-valuenow', progressValue);
+    }
+    
+    // Inicia o processamento via AJAX
+    console.log('Iniciando processamento do job {{ job.id }}');
+    $('#processing-message').text('Iniciando processamento...');
+    
+    $.post('/api/process/{{ job.id }}')
+        .done(function(response) {
+            console.log('Processamento iniciado com sucesso:', response);
+            $('#processing-message').text('Extraindo dados do PDF...');
+            updateProgress();
+        })
+        .fail(function(xhr) {
+            console.error('Erro ao iniciar processamento:', xhr.responseJSON);
+            $('#processing-title').text('Erro ao iniciar processamento');
+            $('#processing-message').text('Erro: ' + (xhr.responseJSON ? xhr.responseJSON.error : 'Erro desconhecido'));
+        });
+    
+    // Polling para verificar status
+    function checkJobStatus() {
+        pollCount++;
+        console.log('Verificando status do job (tentativa ' + pollCount + ')...');
+        
+        $.get('/api/job/{{ job.id }}')
+            .done(function(response) {
+                console.log('Status atual:', response);
+                
+                if (response.status === 'completed') {
+                    console.log('Processamento concluído! Recarregando página...');
+                    $('#processing-title').text('Processamento concluído!');
+                    $('#processing-message').text('Redirecionando para resultados...');
+                    $('#progress-bar').css('width', '100%').attr('aria-valuenow', 100);
+                    
+                    // Espera um pouco antes de recarregar para mostrar o feedback
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else if (response.status === 'error') {
+                    console.error('Erro no processamento:', response.message);
+                    $('#processing-title').text('Erro no Processamento');
+                    $('#processing-message').text(response.message);
+                    $('#progress-bar').removeClass('progress-bar-animated').addClass('bg-danger');
+                } else {
+                    // Ainda processando
+                    if (response.message) {
+                        $('#processing-message').text(response.message);
+                    }
+                    updateProgress();
+                    
+                    // Continua verificando a cada 2 segundos
+                    setTimeout(checkJobStatus, 2000);
+                }
+            })
+            .fail(function(xhr) {
+                console.error('Erro ao verificar status do job:', xhr);
+                
+                if (pollCount <= 10) {
+                    // Retry até 10 vezes
+                    $('#processing-message').text('Verificando status... (tentativa ' + pollCount + ')');
+                    setTimeout(checkJobStatus, 3000);
+                } else {
+                    $('#processing-title').text('Erro de Comunicação');
+                    $('#processing-message').text('Não foi possível verificar o status do processamento.');
+                    $('#progress-bar').removeClass('progress-bar-animated').addClass('bg-warning');
+                }
+            });
+    }
+    
+    // Inicia o polling após 3 segundos
+    setTimeout(checkJobStatus, 3000);
+    
+    // Atualiza progresso visual a cada segundo
+    setInterval(function() {
+        if (progressValue < 90) {
+            updateProgress();
+        }
+    }, 1000);
     {% endif %}
 });
 </script>
