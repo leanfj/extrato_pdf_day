@@ -29,8 +29,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP=app.py \
     FLASK_ENV=production
 
-# Create directories
-RUN mkdir -p uploads results
+# Create directories with proper permissions
+RUN mkdir -p uploads results data logs && \
+    chmod 755 uploads results data logs
 
 # Copy requirements first (for better Docker layer caching)
 COPY requirements.txt .
@@ -43,7 +44,13 @@ COPY . .
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
-RUN chown -R appuser:appuser /app
+
+# Create and set permissions for directories
+RUN mkdir -p uploads results data logs && \
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app && \
+    chmod -R 777 /app/uploads /app/results /app/data /app/logs
+
 USER appuser
 
 # Expose port

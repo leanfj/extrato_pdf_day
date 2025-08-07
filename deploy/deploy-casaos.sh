@@ -79,9 +79,12 @@ log_success "Pré-requisitos verificados!"
 
 log_step "2/8 Criando estrutura de diretórios..."
 
-# Cria diretórios necessários
+# Cria diretórios necessários com permissões adequadas
 mkdir -p uploads results data logs
-chmod 755 uploads results data
+chmod 777 uploads results data logs
+
+# Garante que o usuário atual tem acesso aos diretórios
+chown -R $USER:$USER uploads results data logs 2>/dev/null || true
 
 log_success "Diretórios criados!"
 

@@ -7,10 +7,10 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Usar volumes nomeados ao invés de bind mounts para evitar problemas de permissão
-      - uploads_data:/app/uploads
-      - results_data:/app/results
-      - data_storage:/app/data
+      # Bind mounts com configuração de permissões
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+      - ./data:/app/data
     environment:
       - FLASK_ENV=production
       - FLASK_APP=app.py
@@ -22,8 +22,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Adiciona privilégios para gerenciar permissões
+    privileged: false
+    user: "1000:1000"  # Usar UID/GID padrão do usuário
 
 volumes:
-  uploads_data:
-  results_data:
-  data_storage:
+  uploads:
+  results:
+  data:
