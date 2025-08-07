@@ -1,0 +1,73 @@
+# Configurações para CasaOS
+name: extrator-pdf
+services:
+  app:
+    container_name: extrator-pdf
+    deploy:
+      resources:
+        reservations:
+          memory: "256M"
+        limits:
+          memory: "1G"
+    image: extrator-pdf:latest
+    build: .
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/pdf.png
+      tz: America/Sao_Paulo
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.webui: http://[IP]:[PORT:5000]/
+      net.unraid.docker.icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/pdf.png
+    networks:
+      default: null
+    ports:
+    - target: 5000
+      published: "5000"
+      protocol: tcp
+    restart: unless-stopped
+    volumes:
+    - type: bind
+      source: /DATA/AppData/extrator-pdf/uploads
+      target: /app/uploads
+    - type: bind
+      source: /DATA/AppData/extrator-pdf/results
+      target: /app/results
+    - type: bind
+      source: /DATA/AppData/extrator-pdf/data
+      target: /app/data
+    environment:
+      FLASK_ENV: production
+      FLASK_APP: app.py
+      TZ: America/Sao_Paulo
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+networks:
+  default:
+    name: extrator-pdf_default
+x-casaos:
+  architectures:
+  - amd64
+  - arm64
+  main: app
+  author: self
+  category: Productivity
+  description:
+    en_us: Sistema para extração automática de dados de arquivos PDF de débitos detalhados. Interface web moderna com dashboard, suporte a múltiplos formatos de exportação e agregação inteligente por placas de veículos.
+    pt_br: Sistema para extração automática de dados de arquivos PDF de débitos detalhados. Interface web moderna com dashboard, suporte a múltiplos formatos de exportação e agregação inteligente por placas de veículos.
+  developer: Leandro
+  icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/pdf.png
+  screenshot_link:
+  - https://raw.githubusercontent.com/user/repo/main/screenshots/main.png
+  - https://raw.githubusercontent.com/user/repo/main/screenshots/dashboard.png
+  tagline:
+    en_us: PDF Data Extractor with Smart Vehicle Plate Aggregation
+    pt_br: Extrator de Dados PDF com Agregação Inteligente por Placas
+  thumbnail: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/pdf.png
+  title:
+    en_us: PDF Data Extractor
+    pt_br: Extrator de Dados PDF
+  index: /
+  port_map: "5000"

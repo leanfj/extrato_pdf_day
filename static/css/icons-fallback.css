@@ -1,0 +1,62 @@
+/* Bootstrap Icons Fallback - Sistema Estável */
+
+/* Previne flash/piscadas durante carregamento */
+.bi {
+    visibility: visible !important;
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+/* Fallback aplicado APENAS quando a classe icons-fallback está presente */
+.icons-fallback .bi::before {
+    display: inline-block !important;
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', Arial, sans-serif !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    vertical-align: -0.125em !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ícones específicos - APENAS com classe fallback */
+.icons-fallback .bi-lightning-charge-fill::before { content: "⚡" !important; }
+.icons-fallback .bi-shield-check-fill::before { content: "✅" !important; }
+.icons-fallback .bi-file-earmark-excel-fill::before { content: "📊" !important; }
+.icons-fallback .bi-file-earmark-pdf::before { content: "📄" !important; }
+.icons-fallback .bi-file-earmark-pdf-fill::before { content: "📄" !important; }
+.icons-fallback .bi-moon-fill::before { content: "🌙" !important; }
+.icons-fallback .bi-sun-fill::before { content: "☀️" !important; }
+.icons-fallback .bi-upload::before { content: "⬆️" !important; }
+.icons-fallback .bi-download::before { content: "⬇️" !important; }
+.icons-fallback .bi-eye::before { content: "👁️" !important; }
+.icons-fallback .bi-bar-chart::before { content: "📊" !important; }
+.icons-fallback .bi-table::before { content: "📋" !important; }
+.icons-fallback .bi-gear::before { content: "⚙️" !important; }
+.icons-fallback .bi-house::before { content: "🏠" !important; }
+.icons-fallback .bi-person::before { content: "👤" !important; }
+
+/* Styling específico para fallback */
+.icons-fallback .bi {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', Arial, sans-serif !important;
+    font-size: inherit !important;
+    display: inline-block !important;
+}
+
+/* Feature icons com fallback */
+.icons-fallback .feature-icon .bi {
+    font-size: 2.5rem !important;
+    line-height: 1 !important;
+}
+
+/* Navbar icons com fallback */
+.icons-fallback .navbar .bi {
+    font-size: 1.2rem !important;
+}
+
+/* Previne mudanças durante carregamento */
+.bi, .icons-fallback .bi {
+    min-width: 1em;
+    min-height: 1em;
+}

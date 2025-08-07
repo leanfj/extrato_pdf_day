@@ -1,0 +1,32 @@
+version: '3.8'
+
+# Docker Compose para Desenvolvimento
+# Uso: docker-compose -f docker-compose.dev.yml up
+
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - FLASK_APP=app.py
+    command: ["python", "app.py"]
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - venv/
+            - __pycache__/
+            - uploads/
+            - results/

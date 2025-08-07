@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Início - Extrator de PDF{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Hero Section -->
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-primary">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+                Extrator de PDF
+            </h1>
+            <p class="lead text-muted">
+                Extraia automaticamente dados de débitos detalhados de arquivos PDF
+            </p>
+            
+            <!-- Botão de teste de ícones -->
+            <div class="mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="forceIconFallback()">
+                    <i class="bi bi-gear"></i> Alternar Modo Ícones
+                </button>
+            </div>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-cloud-upload"></i>
+                    Enviar Arquivo PDF
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="mb-4">
+                        <label for="file" class="form-label">
+                            <i class="bi bi-file-earmark-arrow-up"></i>
+                            Selecione o arquivo PDF:
+                        </label>
+                        <input type="file" class="form-control form-control-lg" id="file" name="file" 
+                               accept=".pdf" required>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i>
+                            Arquivo deve ser PDF e ter no máximo 50MB
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="bi bi-gear"></i>
+                            Processar Arquivo
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Loading indicator -->
+                <div id="loadingIndicator" class="text-center mt-3" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Processando...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Processando arquivo, aguarde...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="row mt-5">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-lightning-charge-fill text-warning" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="card-title">Extração Rápida</h5>
+                        <p class="card-text text-muted">
+                            Processamento automático e rápido de dados de PDF usando algoritmos avançados
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-shield-check-fill text-success" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="card-title">Dados Precisos</h5>
+                        <p class="card-text text-muted">
+                            Extração precisa de placas, datas e valores com validação automática
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-file-earmark-excel-fill text-primary" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="card-title">Múltiplos Formatos</h5>
+                        <p class="card-text text-muted">
+                            Exportação em Excel, CSV e visualização interativa dos dados
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="card mt-5 border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-question-circle"></i>
+                    Como usar
+                </h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">
+                        <strong>Selecione</strong> o arquivo PDF com os dados de débitos detalhados
+                    </li>
+                    <li class="mb-2">
+                        <strong>Aguarde</strong> o processamento automático do arquivo
+                    </li>
+                    <li class="mb-2">
+                        <strong>Visualize</strong> os dados extraídos na tabela interativa
+                    </li>
+                    <li>
+                        <strong>Baixe</strong> os resultados em Excel ou CSV
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#uploadForm').on('submit', function() {
+        $('#submitBtn').prop('disabled', true);
+        $('#loadingIndicator').show();
+        
+        // Simula progresso (em produção, usar WebSocket ou polling)
+        setTimeout(function() {
+            $('#submitBtn').text('Processando...');
+        }, 500);
+    });
+    
+    // Validação de arquivo
+    $('#file').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileSize = file.size / 1024 / 1024; // MB
+            const fileName = file.name.toLowerCase();
+            
+            if (fileSize > 50) {
+                alert('Arquivo muito grande! Máximo permitido: 50MB');
+                this.value = '';
+                return;
+            }
+            
+            if (!fileName.endsWith('.pdf')) {
+                alert('Apenas arquivos PDF são permitidos!');
+                this.value = '';
+                return;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
