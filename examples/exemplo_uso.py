@@ -8,6 +8,9 @@ Uso: python exemplo_uso.py arquivo.pdf
 
 import sys
 import os
+
+# Adiciona o diretório pai ao path para importar o módulo
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from extrator_pdf import PDFExtractor
 
 def main():

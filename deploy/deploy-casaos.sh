@@ -52,10 +52,13 @@ APP_PORT="5000"
 DOCKER_IMAGE_NAME="extrator-pdf-app"
 
 # Verifica se está no diretório correto
-if [ ! -f "app.py" ]; then
-    log_error "app.py não encontrado. Execute este script no diretório da aplicação."
+if [ ! -f "../app.py" ]; then
+    log_error "app.py não encontrado. Execute este script do diretório deploy/ dentro da aplicação."
     exit 1
 fi
+
+# Vai para o diretório raiz do projeto
+cd ..
 
 log_step "1/8 Verificando pré-requisitos..."
 
